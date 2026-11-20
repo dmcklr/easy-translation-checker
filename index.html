@@ -16,8 +16,6 @@
   #search { flex: 1; max-width: 600px; min-width: 160px; margin-right: auto; padding: 8px 12px; font-size: 15px;
             border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
   #search:focus { outline: none; border-color: #3b6fd8; box-shadow: 0 0 0 3px rgba(59,111,216,.15); }
-  #langSelect { width: 100%; padding: 8px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 4px;
-                margin-bottom: 20px; }
   .actions { position: relative; margin-left: auto; }
   #menuBtn { background: #fff; color: #374151; border: 1px solid #d1d5db; padding: 6px 10px; font-size: 18px;
              line-height: 1; }
@@ -48,6 +46,8 @@
          padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.08); align-items: start; }
   .row.done { opacity: .55; background: #ecfdf5; }
   .key { font-family: monospace; font-size: 12px; color: #6b7280; word-break: break-all; margin-bottom: 4px; }
+  .key .id { margin-left: 10px; padding: 1px 6px; background: #f3f4f6; border-radius: 3px; color: #374151;
+             white-space: nowrap; }
   .en { white-space: pre-wrap; }
   textarea { width: 100%; min-height: 48px; font: inherit; padding: 6px; border: 1px solid #d1d5db;
              border-radius: 4px; resize: vertical; }
@@ -91,16 +91,14 @@
     </div>
   </header>
   <div class="subbar">
-    <input type="search" id="search" placeholder="Search (key / text)…">
+    <input type="search" id="search" placeholder="Search (key / ID / text)…">
     <span id="progress"></span>
     <label class="toggle"><input type="checkbox" id="showDone"> Show done</label>
   </div>
 </div>
 
 <div id="drop">Drop a JSON file here or open one via ☰ › Import.<br><br>
-  <small>Format: <code>[{"key": "...", "en": "...", "de": "..."}]</code> or
-  <code>{"key": {"en": "...", "de": "..."}}</code><br>
-  The language field can be any language code (e.g. <code>de</code>, <code>fr</code>, <code>ko</code>, <code>zh_CN</code>).</small>
+  <small>Format: <code>[{"ID": 123, "ItemKey": "...", "Text": "...", "Translation": "..."}]</code></small>
 </div>
 <div id="list"></div>
 
@@ -110,11 +108,11 @@
   <ol>
     <li><b>Import:</b> Open the menu (☰) and click <b>Import</b>. Choose your JSON file.
         You can also drag the file onto the page.</li>
-    <li><b>Check:</b> On the left you see the key and the English text. On the right you see the translation.
+    <li><b>Check:</b> On the left you see the item key, its ID and the English text. On the right you see the translation.
         If it is wrong, just type the correct text. Changed texts are marked yellow.</li>
     <li><b>Mark as done:</b> When a translation is correct, tick the box on the right. The entry disappears.
         Turn on <b>Show done</b> to see done entries again.</li>
-    <li><b>Search:</b> Use the search field to find a key or a text.</li>
+    <li><b>Search:</b> Use the search field to find an item key, an ID or a text.</li>
     <li><b>Export:</b> Click ☰ › <b>Export</b>. This downloads your work as <code>&lt;date&gt;_&lt;time&gt;_&lt;name&gt;_edited.json</code>,
         including the “done” marks. Import this file later to continue where you stopped.</li>
   </ol>
@@ -128,18 +126,6 @@
     <li>Before a new file replaces the current one, you are asked to export and to confirm.</li>
   </ul>
   <form method="dialog"><button>Got it</button></form>
-</dialog>
-
-<dialog id="langDialog">
-  <h2>Choose language</h2>
-  <p>This file contains more than one translation. Which language do you want to check?</p>
-  <form method="dialog">
-    <select id="langSelect"></select>
-    <div class="dialog-buttons">
-      <button value="cancel" class="secondary">Cancel</button>
-      <button value="ok">OK</button>
-    </div>
-  </form>
 </dialog>
 
 <dialog id="replaceDialog">
@@ -159,67 +145,40 @@
 
 <script>
 const STORAGE_KEY = 'translationChecker.state';
-let state = null; // { fileName, shape: 'array'|'object', keyField, enField, targetField, items: [...] }
+const STATE_VERSION = 2;
+// state = { version, fileName, records: [original records, never modified], progress: { [ID]: { Translation, done } } }
+let state = null;
 
 const $ = id => document.getElementById(id);
 
-function detectFields(items) {
-  const fields = [...new Set(items.flatMap(it => Object.keys(it)))]
-    .filter(f => f !== 'done' && f !== '__key');
-  const find = (cands) => fields.find(f => cands.includes(f.toLowerCase()));
-  const keyField = find(['key', 'id', 'name']);
-  const enField = find(['en', 'english', 'en_us', 'en-us', 'en_gb', 'en-gb']);
-  const candidates = fields.filter(f => f !== keyField && f !== enField);
-  return { keyField, enField, candidates };
-}
-
-function chooseLanguage(candidates) {
-  const dlg = $('langDialog');
-  const sel = $('langSelect');
-  sel.innerHTML = '';
-  candidates.forEach(c => sel.add(new Option(c, c)));
-  dlg.returnValue = '';
-  dlg.showModal();
-  return new Promise(resolve => {
-    dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok' ? sel.value : null), { once: true });
+function parseData(data, fileName) {
+  if (!Array.isArray(data)) throw new Error('JSON must be an array of entries.');
+  if (!data.length) throw new Error('JSON contains no entries.');
+  const progress = {};
+  data.forEach((r, i) => {
+    const pos = `Entry ${i + 1}`;
+    if (!r || typeof r !== 'object') throw new Error(`${pos} is not an object.`);
+    for (const f of ['ID', 'ItemKey', 'Text']) {
+      if (r[f] === undefined || r[f] === null || r[f] === '') throw new Error(`${pos} has no "${f}".`);
+    }
+    if (!('Translation' in r)) throw new Error(`${pos} (ID ${r.ID}) has no "Translation" field.`);
+    if (String(r.ID) in progress) throw new Error(`ID ${r.ID} occurs more than once.`);
+    progress[r.ID] = { Translation: r.Translation ?? '', done: r.done === true };
   });
+  return { version: STATE_VERSION, fileName, records: data, progress };
 }
 
-async function parseData(data, fileName) {
-  let shape, items;
-  if (Array.isArray(data)) {
-    shape = 'array';
-    items = data;
-  } else if (data && typeof data === 'object') {
-    shape = 'object';
-    items = Object.entries(data).map(([k, v]) => ({ __key: k, ...v }));
-  } else {
-    throw new Error('JSON must be an array or an object.');
-  }
-  if (!items.length) throw new Error('JSON contains no entries.');
-  const { keyField: detectedKey, enField, candidates } = detectFields(items);
-  const keyField = shape === 'object' ? '__key' : detectedKey;
-  if (!keyField || !enField || !candidates.length) {
-    throw new Error('Fields not recognized. Expected a key field, "en" and one language field (e.g. "de", "ko"). Found: '
-      + Object.keys(items[0]).join(', '));
-  }
-  const targetField = candidates.length === 1 ? candidates[0] : await chooseLanguage(candidates);
-  if (!targetField) return null;
-  items.forEach(it => { it.__orig = it[targetField] ?? ''; });
-  return { fileName, shape, keyField, enField, targetField, items };
-}
+const itemsView = () => state.records.map(r => ({ record: r, p: state.progress[r.ID] }));
 
+// Writes edits back by ID; all other fields (incl. ItemKey) come unchanged from the original record.
 function buildExport() {
-  const clean = it => {
-    const o = {};
-    for (const [k, v] of Object.entries(it)) if (!k.startsWith('__')) o[k] = v;
-    if (!it.done) delete o.done;
-    return o;
-  };
-  if (state.shape === 'array') return state.items.map(clean);
-  const out = {};
-  state.items.forEach(it => { out[it.__key] = clean(it); });
-  return out;
+  return state.records.map(r => {
+    const p = state.progress[r.ID];
+    const { done, ...rest } = r;
+    const out = { ...rest, Translation: p.Translation };
+    if (p.done) out.done = true;
+    return out;
+  });
 }
 
 function save() {
@@ -227,8 +186,8 @@ function save() {
 }
 
 function updateProgress() {
-  const done = state.items.filter(i => i.done).length;
-  $('progress').textContent = `${done} / ${state.items.length} done`;
+  const all = Object.values(state.progress);
+  $('progress').textContent = `${all.filter(p => p.done).length} / ${all.length} done`;
 }
 
 function render() {
@@ -243,38 +202,44 @@ function render() {
 
   const q = $('search').value.trim().toLowerCase();
   const showDone = $('showDone').checked;
-  const { keyField, enField, targetField } = state;
   const frag = document.createDocumentFragment();
   let count = 0;
 
-  state.items.forEach(it => {
-    if (it.done && !showDone) return;
-    if (q && ![it[keyField], it[enField], it[targetField]].some(v => String(v ?? '').toLowerCase().includes(q))) return;
+  itemsView().forEach(({ record, p }) => {
+    if (p.done && !showDone) return;
+    if (q && ![record.ID, record.ItemKey, record.Text, p.Translation]
+      .some(v => String(v ?? '').toLowerCase().includes(q))) return;
     count++;
 
     const row = document.createElement('div');
-    row.className = 'row' + (it.done ? ' done' : '');
+    row.className = 'row' + (p.done ? ' done' : '');
 
     const left = document.createElement('div');
     const key = document.createElement('div');
-    key.className = 'key'; key.textContent = it[keyField];
+    key.className = 'key';
+    key.textContent = record.ItemKey;
+    const id = document.createElement('span');
+    id.className = 'id';
+    id.textContent = `ID ${record.ID}`;
+    key.append(id);
     const en = document.createElement('div');
-    en.className = 'en'; en.textContent = it[enField] ?? '';
+    en.className = 'en'; en.textContent = record.Text;
     left.append(key, en);
 
+    const orig = record.Translation ?? '';
     const ta = document.createElement('textarea');
-    ta.value = it[targetField] ?? '';
-    const markChanged = () => ta.classList.toggle('changed', ta.value !== it.__orig);
+    ta.value = p.Translation;
+    const markChanged = () => ta.classList.toggle('changed', ta.value !== orig);
     markChanged();
-    ta.addEventListener('input', () => { it[targetField] = ta.value; markChanged(); save(); });
+    ta.addEventListener('input', () => { p.Translation = ta.value; markChanged(); save(); });
 
     const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.className = 'check'; cb.checked = !!it.done;
+    cb.type = 'checkbox'; cb.className = 'check'; cb.checked = p.done;
     cb.title = 'Mark as done';
     cb.addEventListener('change', () => {
-      it.done = cb.checked;
+      p.done = cb.checked;
       save();
-      if (it.done && !showDone) row.remove(); else row.classList.toggle('done', it.done);
+      if (p.done && !showDone) row.remove(); else row.classList.toggle('done', p.done);
       updateProgress();
     });
 
@@ -285,7 +250,7 @@ function render() {
   if (!count) {
     const e = document.createElement('div');
     e.className = 'empty';
-    e.textContent = state.items.every(i => i.done) ? 'All done 🎉' : 'No entries found.';
+    e.textContent = Object.values(state.progress).every(p => p.done) ? 'All done 🎉' : 'No entries found.';
     frag.appendChild(e);
   }
   list.appendChild(frag);
@@ -326,11 +291,9 @@ function confirmReplace() {
 function loadFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = async () => {
+  reader.onload = () => {
     try {
-      const parsed = await parseData(JSON.parse(reader.result), file.name);
-      if (!parsed) return;
-      state = parsed;
+      state = parseData(JSON.parse(reader.result), file.name);
       $('showDone').checked = true;
       save();
       render();
@@ -402,7 +365,11 @@ document.addEventListener('drop', async e => {
 
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) state = JSON.parse(saved);
+  if (saved) {
+    const s = JSON.parse(saved);
+    // Progress from the old, pre-ID data format cannot be mapped and is ignored.
+    if (s && s.version === STATE_VERSION) state = s;
+  }
 } catch (e) { console.warn(e); }
 render();
 </script>

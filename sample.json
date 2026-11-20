@@ -1,6 +1,6 @@
 [
-  { "key": "menu.start", "en": "Start game", "ko": "게임 시작" },
-  { "key": "menu.options", "en": "Options", "ko": "옵션" },
-  { "key": "menu.quit", "en": "Quit", "ko": "종료" },
-  { "key": "dialog.confirm", "en": "Are you sure?", "ko": "확실합니까?", "done": true }
+  { "ID": 1, "ItemKey": "menu.start", "Text": "Start game", "Translation": "게임 시작" },
+  { "ID": 2, "ItemKey": "menu.options", "Text": "Options", "Translation": "옵션" },
+  { "ID": 3, "ItemKey": "menu.quit", "Text": "Quit", "Translation": "종료" },
+  { "ID": 4, "ItemKey": "dialog.confirm", "Text": "Are you sure?", "Translation": "확실합니까?", "done": true }
 ]

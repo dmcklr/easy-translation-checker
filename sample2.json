@@ -1,0 +1,308 @@
+[
+  {
+    "ID": 3437,
+    "ItemKey": "website/account/account/CRE_UPLOAD",
+    "Text": "Upload",
+    "Translation": "업로드"
+  },
+  {
+    "ID": 3393,
+    "ItemKey": "website/account/account/GEN_ADDRESS",
+    "Text": "Address",
+    "Translation": "주소"
+  },
+  {
+    "ID": 3534,
+    "ItemKey": "website/account/account/GEN_INV_DATEFORMAT",
+    "Text": "Y-m-d",
+    "Translation": "Y-m-d"
+  },
+  {
+    "ID": 3244,
+    "ItemKey": "website/account/account/GEN_OK",
+    "Text": "OK",
+    "Translation": "좋아요"
+  },
+  {
+    "ID": 3528,
+    "ItemKey": "website/account/account/GEN_PERSONALDATA",
+    "Text": "Personal Data",
+    "Translation": "개인 데이터"
+  },
+  {
+    "ID": 3712,
+    "ItemKey": "website/account/account/GEN_REGISTER",
+    "Text": "Register Now",
+    "Translation": "지금 등록하세요"
+  },
+  {
+    "ID": 3387,
+    "ItemKey": "website/account/account/GEN_REGISTRATION",
+    "Text": "Registration",
+    "Translation": "등록"
+  },
+  {
+    "ID": 3594,
+    "ItemKey": "website/account/account/LBL_LOGOUT",
+    "Text": "Logout",
+    "Translation": "로그아웃"
+  },
+  {
+    "ID": 3226,
+    "ItemKey": "website/account/account/REP_COL5",
+    "Text": "Status",
+    "Translation": "상태"
+  },
+  {
+    "ID": 4039,
+    "ItemKey": "website/contact/index/company_index/contactbox_1",
+    "Text": "Contact us",
+    "Translation": "저희에게 연락하세요"
+  },
+  {
+    "ID": 4094,
+    "ItemKey": "website/contact/vcard/Email",
+    "Text": "Email",
+    "Translation": "이메일"
+  },
+  {
+    "ID": 4097,
+    "ItemKey": "website/contact/vcard/Phone",
+    "Text": "Phone",
+    "Translation": "핸드폰"
+  },
+  {
+    "ID": 4095,
+    "ItemKey": "website/contact/vcard/Web",
+    "Text": "Website",
+    "Translation": "웹사이트"
+  },
+  {
+    "ID": 4131,
+    "ItemKey": "website/contactForm/CONTACT_LBL_6",
+    "Text": "Message",
+    "Translation": "메시지"
+  },
+  {
+    "ID": 4107,
+    "ItemKey": "website/contactForm/CONTACT_LBL_FIRSTNAME",
+    "Text": "First Name",
+    "Translation": "이름"
+  },
+  {
+    "ID": 4137,
+    "ItemKey": "website/contactForm/CONTACT_LBL_LASTNAME",
+    "Text": "Last Name",
+    "Translation": "성"
+  },
+  {
+    "ID": 4145,
+    "ItemKey": "website/cookieConsent/banner6",
+    "Text": "Learn more",
+    "Translation": "더 알아보기"
+  },
+  {
+    "ID": 4184,
+    "ItemKey": "website/cookieConsent/CC_3",
+    "Text": "Accept all cookies",
+    "Translation": "모든 쿠키 허용"
+  },
+  {
+    "ID": 4178,
+    "ItemKey": "website/cookieConsent/CC_5",
+    "Text": "Reject all optional cookies",
+    "Translation": "선택적 쿠키를 모두 거부합니다."
+  },
+  {
+    "ID": 4273,
+    "ItemKey": "website/login/login",
+    "Text": "Login",
+    "Translation": "로그인"
+  },
+  {
+    "ID": 4261,
+    "ItemKey": "website/login/password",
+    "Text": "Password",
+    "Translation": "비밀번호"
+  },
+  {
+    "ID": 4290,
+    "ItemKey": "website/sitemap/company/contact",
+    "Text": "Contact",
+    "Translation": "연락하다"
+  },
+  {
+    "ID": 4288,
+    "ItemKey": "website/sitemap/company/dataPrivacy",
+    "Text": "Data Privacy",
+    "Translation": "데이터 개인정보 보호"
+  },
+  {
+    "ID": 4295,
+    "ItemKey": "website/sitemap/company/imprint",
+    "Text": "Imprint",
+    "Translation": "날인"
+  },
+  {
+    "ID": 11460,
+    "ItemKey": "website/sitemap/company/manageCookies",
+    "Text": "Cookie Settings",
+    "Translation": "쿠키 설정"
+  },
+  {
+    "ID": 14777,
+    "ItemKey": "website/sitemap/pageheader/account",
+    "Text": "Account",
+    "Translation": "계정"
+  },
+  {
+    "ID": 4350,
+    "ItemKey": "website/software/software/software_examples/TEXT_3",
+    "Text": "Results",
+    "Translation": "결과"
+  },
+  {
+    "ID": 4451,
+    "ItemKey": "website/software/software/software_index/TEXT_32",
+    "Text": "Participants",
+    "Translation": "참가자들"
+  },
+  {
+    "ID": 4968,
+    "ItemKey": "website/solutions/solutions_gen/pdf_gen_text/downloadbutton",
+    "Text": "Download PDF",
+    "Translation": "PDF 다운로드"
+  },
+  {
+    "ID": 5058,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/biathlon",
+    "Text": "Biathlon",
+    "Translation": "바이애슬론"
+  },
+  {
+    "ID": 5056,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/cycling",
+    "Text": "Cycling",
+    "Translation": "사이클링"
+  },
+  {
+    "ID": 5068,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/fitness",
+    "Text": "Fitness Race",
+    "Translation": "피트니스 레이스"
+  },
+  {
+    "ID": 5054,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/marathon",
+    "Text": "Marathon",
+    "Translation": "마라톤"
+  },
+  {
+    "ID": 5059,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/skimo",
+    "Text": "Ski Mountaineering",
+    "Translation": "스키 등산"
+  },
+  {
+    "ID": 5062,
+    "ItemKey": "website/solutions/solutions_gen/sol_names/trailrun",
+    "Text": "Trail Running",
+    "Translation": "트레일 러닝"
+  },
+  {
+    "ID": 4970,
+    "ItemKey": "website/solutions/solutions_gen/solutions_submenue_text/TEXT_0",
+    "Text": "Events",
+    "Translation": "이벤트"
+  },
+  {
+    "ID": 5453,
+    "ItemKey": "website/solutions/solutions_specific/xc-skiing_text/sol_head",
+    "Text": "Cross-Country Skiing",
+    "Translation": "크로스컨트리 스키"
+  },
+  {
+    "ID": 14895,
+    "ItemKey": "website/support/kb/searchTranslations/title",
+    "Text": "Search",
+    "Translation": "찾다"
+  },
+  {
+    "ID": 5656,
+    "ItemKey": "website/support/support/forum/CHAT_LANGALL",
+    "Text": "Show All",
+    "Translation": "모두 보기"
+  },
+  {
+    "ID": 5647,
+    "ItemKey": "website/support/support/forum/FORUM_LABEL3",
+    "Text": "Subject:",
+    "Translation": "주제:"
+  },
+  {
+    "ID": 5655,
+    "ItemKey": "website/support/support/forum/FORUM_LABEL6",
+    "Text": "search...",
+    "Translation": "찾다..."
+  },
+  {
+    "ID": 5777,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_10",
+    "Text": "Mountain Bike",
+    "Translation": "산악자전거"
+  },
+  {
+    "ID": 5686,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_110",
+    "Text": "Motorsports",
+    "Translation": "모터스포츠"
+  },
+  {
+    "ID": 5757,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_13",
+    "Text": "BMX",
+    "Translation": "BMX"
+  },
+  {
+    "ID": 5772,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_3",
+    "Text": "Running",
+    "Translation": "달리기"
+  },
+  {
+    "ID": 5720,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_44",
+    "Text": "Speed Skating",
+    "Translation": "스피드 스케이팅"
+  },
+  {
+    "ID": 5764,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_5",
+    "Text": "Triathlon",
+    "Translation": "트라이애슬론"
+  },
+  {
+    "ID": 5717,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_56",
+    "Text": "Split",
+    "Translation": "나뉘다"
+  },
+  {
+    "ID": 5708,
+    "ItemKey": "website/systems/configurator/config_questions/TEXT_57",
+    "Text": "Splits",
+    "Translation": "분할"
+  },
+  {
+    "ID": 15259,
+    "ItemKey": "website/youtube_embed/consent2",
+    "Text": "Accept and play",
+    "Translation": "수락하고 플레이하세요"
+  },
+  {
+    "ID": 15261,
+    "ItemKey": "website/youtube_embed/consent3",
+    "Text": "Remember for all videos",
+    "Translation": "모든 영상에 대한 기억"
+  }
+]
