@@ -7,15 +7,26 @@
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, sans-serif; margin: 0; background: #f4f5f7; color: #222; }
-  header { position: sticky; top: 0; z-index: 10; background: #1f2937; color: #fff; padding: 10px 16px;
-           display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  header h1 { font-size: 18px; margin: 0 12px 0 0; }
-  button, .btn { background: #3b82f6; color: #fff; border: 0; border-radius: 4px; padding: 6px 12px;
-                 cursor: pointer; font-size: 14px; }
-  button:disabled { background: #6b7280; cursor: default; }
-  input[type=search] { padding: 6px 8px; border-radius: 4px; border: 0; min-width: 220px; }
-  label.toggle { font-size: 14px; display: flex; gap: 4px; align-items: center; }
-  #progress { font-size: 14px; margin-left: auto; }
+  .top { position: sticky; top: 0; z-index: 10; }
+  header { background: #fff; padding: 14px 20px; display: flex; gap: 16px; align-items: center;
+           border-bottom: 1px solid #e5e7eb; }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
+  #fileName { color: #6b7280; font-size: 15px; white-space: nowrap; max-width: 260px; overflow: hidden;
+              text-overflow: ellipsis; }
+  #search { flex: 1; max-width: 600px; min-width: 160px; margin-right: auto; padding: 8px 12px; font-size: 15px;
+            border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+  #search:focus { outline: none; border-color: #3b6fd8; box-shadow: 0 0 0 3px rgba(59,111,216,.15); }
+  .actions { display: flex; gap: 8px; margin-left: auto; }
+  button, .btn { background: #3b6fd8; color: #fff; border: 1px solid #3b6fd8; border-radius: 4px; padding: 7px 14px;
+                 cursor: pointer; font-size: 14px; white-space: nowrap; }
+  button:hover, .btn:hover { background: #2f5cb8; }
+  button.secondary { background: #fff; color: #3b6fd8; }
+  button.secondary:hover { background: #eef3fc; }
+  button:disabled, button:disabled:hover { background: #fff; color: #9ca3af; border-color: #d1d5db; cursor: default; }
+  .subbar { background: #f4f5f7; padding: 10px 20px; display: flex; align-items: center;
+            gap: 16px; font-size: 14px; }
+  label.toggle { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  #progress { color: #374151; }
   #drop { margin: 40px auto; max-width: 600px; padding: 40px; border: 3px dashed #9ca3af; border-radius: 8px;
           text-align: center; color: #6b7280; background: #fff; }
   #drop.over { border-color: #3b82f6; color: #3b82f6; }
@@ -30,23 +41,48 @@
   textarea.changed { border-color: #f59e0b; background: #fffbeb; }
   .check { width: 26px; height: 26px; cursor: pointer; margin-top: 4px; }
   .empty { text-align: center; color: #6b7280; padding: 40px; }
+  dialog { border: 0; border-radius: 8px; padding: 24px; max-width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog h2 { margin: 0 0 12px; font-size: 18px; }
+  dialog ul { padding-left: 20px; margin: 0 0 20px; line-height: 1.5; font-size: 14px; }
+  dialog form { text-align: right; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Translation Checker</h1>
-  <label class="btn">Load new translation file<input type="file" id="file" accept=".json,application/json" hidden></label>
-  <button id="export" disabled>Export</button>
-  <input type="search" id="search" placeholder="Search (key / text)…">
-  <label class="toggle"><input type="checkbox" id="showDone"> Show done</label>
-  <span id="progress"></span>
-</header>
+<div class="top">
+  <header>
+    <h1>Translation Checker</h1>
+    <span id="fileName"></span>
+    <div class="actions">
+      <button id="export" class="secondary" disabled>Export</button>
+      <label class="btn" title="Load new translation file">Import<input type="file" id="file" accept=".json,application/json" hidden></label>
+    </div>
+  </header>
+  <div class="subbar">
+    <input type="search" id="search" placeholder="Search (key / text)…">
+    <span id="progress"></span>
+    <label class="toggle"><input type="checkbox" id="showDone"> Show done</label>
+  </div>
+</div>
 
-<div id="drop">Drop a JSON file here or open one via “Load new translation file”.<br><br>
+<div id="drop">Drop a JSON file here or open one via “Import”.<br><br>
   <small>Format: <code>[{"key": "...", "en": "...", "ko": "..."}]</code> or
   <code>{"key": {"en": "...", "ko": "..."}}</code></small>
 </div>
 <div id="list"></div>
+
+<dialog id="importInfo">
+  <h2>File imported</h2>
+  <ul>
+    <li>The file was loaded into your browser. The original file on disk is <b>not</b> modified.</li>
+    <li>Your progress (edits and “done” marks) is saved automatically in this browser only. It survives a page reload,
+        but not a different browser/PC, private mode or clearing browser data.</li>
+    <li>Importing another file replaces the current progress.</li>
+    <li>Use <b>Export</b> regularly to download your work as <code>&lt;name&gt;_edited.json</code> (including “done” flags).
+        Import that file later to continue where you left off.</li>
+  </ul>
+  <form method="dialog"><button>Got it</button></form>
+</dialog>
 
 <script>
 const STORAGE_KEY = 'translationChecker.state';
@@ -110,6 +146,8 @@ function updateProgress() {
 function render() {
   $('drop').style.display = state ? 'none' : '';
   $('export').disabled = !state;
+  $('fileName').textContent = state ? state.fileName : '';
+  $('fileName').title = state ? state.fileName : '';
   const list = $('list');
   list.innerHTML = '';
   if (!state) { $('progress').textContent = ''; return; }
@@ -177,6 +215,7 @@ function loadFile(file) {
       $('showDone').checked = true;
       save();
       render();
+      $('importInfo').showModal();
     } catch (e) {
       alert('Error loading file: ' + e.message);
     }
@@ -188,11 +227,16 @@ $('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.targe
 $('search').addEventListener('input', render);
 $('showDone').addEventListener('change', render);
 
+function exportFileName(name) {
+  const base = name.replace(/\.json$/i, '').replace(/_edited$/, '');
+  return base + '_edited.json';
+}
+
 $('export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(buildExport(), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = state.fileName || 'translations.json';
+  a.download = exportFileName(state.fileName || 'translations.json');
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
