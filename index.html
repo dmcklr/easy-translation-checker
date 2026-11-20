@@ -50,7 +50,7 @@
              white-space: nowrap; }
   .en { white-space: pre-wrap; }
   textarea { width: 100%; min-height: 48px; font: inherit; padding: 6px; border: 1px solid #d1d5db;
-             border-radius: 4px; resize: vertical; }
+             border-radius: 4px; resize: vertical; overflow: hidden; }
   textarea.changed { border-color: #f59e0b; background: #fffbeb; }
   .check { width: 26px; height: 26px; cursor: pointer; margin-top: 4px; }
   .empty { text-align: center; color: #6b7280; padding: 40px; }
@@ -98,7 +98,8 @@
 </div>
 
 <div id="drop">Drop a JSON file here or open one via ☰ › Import.<br><br>
-  <small>Format: <code>[{"ID": 123, "ItemKey": "...", "Text": "...", "Translation": "..."}]</code></small>
+  <small>Format: <code>[{"ID": 123, "key": "...", "en": "...", "ko": "...", "done": false}]</code><br>
+  The translation field can have any name (e.g. <code>ko</code>, <code>de</code>). <code>done</code> is optional.</small>
 </div>
 <div id="list"></div>
 
@@ -108,11 +109,11 @@
   <ol>
     <li><b>Import:</b> Open the menu (☰) and click <b>Import</b>. Choose your JSON file.
         You can also drag the file onto the page.</li>
-    <li><b>Check:</b> On the left you see the item key, its ID and the English text. On the right you see the translation.
+    <li><b>Check:</b> On the left you see the key, its ID and the English text. On the right you see the translation.
         If it is wrong, just type the correct text. Changed texts are marked yellow.</li>
     <li><b>Mark as done:</b> When a translation is correct, tick the box on the right. The entry disappears.
         Turn on <b>Show done</b> to see done entries again.</li>
-    <li><b>Search:</b> Use the search field to find an item key, an ID or a text.</li>
+    <li><b>Search:</b> Use the search field to find a key, an ID or a text.</li>
     <li><b>Export:</b> Click ☰ › <b>Export</b>. This downloads your work as <code>&lt;date&gt;_&lt;time&gt;_&lt;name&gt;_edited.json</code>,
         including the “done” marks. Import this file later to continue where you stopped.</li>
   </ol>
@@ -145,8 +146,10 @@
 
 <script>
 const STORAGE_KEY = 'translationChecker.state';
-const STATE_VERSION = 2;
-// state = { version, fileName, records: [original records, never modified], progress: { [ID]: { Translation, done } } }
+const STATE_VERSION = 3;
+const FIXED_FIELDS = ['ID', 'key', 'en', 'done'];
+// state = { version, fileName, targetField, records: [original records, never modified],
+//           progress: { [ID]: { text, done } } }
 let state = null;
 
 const $ = id => document.getElementById(id);
@@ -154,30 +157,36 @@ const $ = id => document.getElementById(id);
 function parseData(data, fileName) {
   if (!Array.isArray(data)) throw new Error('JSON must be an array of entries.');
   if (!data.length) throw new Error('JSON contains no entries.');
+
+  // The translation field is the one field besides ID, key, en and done (e.g. "ko", "de").
+  const extra = [...new Set(data.flatMap(r => (r && typeof r === 'object') ? Object.keys(r) : []))]
+    .filter(f => !FIXED_FIELDS.includes(f));
+  if (extra.length !== 1) {
+    throw new Error('Expected exactly one translation field besides ID, key, en and done (e.g. "ko"). Found: '
+      + (extra.length ? extra.join(', ') : 'none'));
+  }
+  const targetField = extra[0];
+
   const progress = {};
   data.forEach((r, i) => {
     const pos = `Entry ${i + 1}`;
     if (!r || typeof r !== 'object') throw new Error(`${pos} is not an object.`);
-    for (const f of ['ID', 'ItemKey', 'Text']) {
+    for (const f of ['ID', 'key', 'en']) {
       if (r[f] === undefined || r[f] === null || r[f] === '') throw new Error(`${pos} has no "${f}".`);
     }
-    if (!('Translation' in r)) throw new Error(`${pos} (ID ${r.ID}) has no "Translation" field.`);
     if (String(r.ID) in progress) throw new Error(`ID ${r.ID} occurs more than once.`);
-    progress[r.ID] = { Translation: r.Translation ?? '', done: r.done === true };
+    progress[r.ID] = { text: r[targetField] ?? '', done: r.done === true };
   });
-  return { version: STATE_VERSION, fileName, records: data, progress };
+  return { version: STATE_VERSION, fileName, targetField, records: data, progress };
 }
 
 const itemsView = () => state.records.map(r => ({ record: r, p: state.progress[r.ID] }));
 
-// Writes edits back by ID; all other fields (incl. ItemKey) come unchanged from the original record.
+// Writes edits back by ID; all other fields (incl. key) come unchanged from the original record.
 function buildExport() {
   return state.records.map(r => {
     const p = state.progress[r.ID];
-    const { done, ...rest } = r;
-    const out = { ...rest, Translation: p.Translation };
-    if (p.done) out.done = true;
-    return out;
+    return { ...r, [state.targetField]: p.text, done: p.done };
   });
 }
 
@@ -207,7 +216,7 @@ function render() {
 
   itemsView().forEach(({ record, p }) => {
     if (p.done && !showDone) return;
-    if (q && ![record.ID, record.ItemKey, record.Text, p.Translation]
+    if (q && ![record.ID, record.key, record.en, p.text]
       .some(v => String(v ?? '').toLowerCase().includes(q))) return;
     count++;
 
@@ -217,21 +226,21 @@ function render() {
     const left = document.createElement('div');
     const key = document.createElement('div');
     key.className = 'key';
-    key.textContent = record.ItemKey;
+    key.textContent = record.key;
     const id = document.createElement('span');
     id.className = 'id';
     id.textContent = `ID ${record.ID}`;
     key.append(id);
     const en = document.createElement('div');
-    en.className = 'en'; en.textContent = record.Text;
+    en.className = 'en'; en.textContent = record.en;
     left.append(key, en);
 
-    const orig = record.Translation ?? '';
+    const orig = record[state.targetField] ?? '';
     const ta = document.createElement('textarea');
-    ta.value = p.Translation;
+    ta.value = p.text;
     const markChanged = () => ta.classList.toggle('changed', ta.value !== orig);
     markChanged();
-    ta.addEventListener('input', () => { p.Translation = ta.value; markChanged(); save(); });
+    ta.addEventListener('input', () => { p.text = ta.value; markChanged(); autoSize(ta); save(); });
 
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.className = 'check'; cb.checked = p.done;
@@ -254,7 +263,19 @@ function render() {
     frag.appendChild(e);
   }
   list.appendChild(frag);
+  autoSizeAll();
 }
+
+// Grows a textarea to fit its content (it can still be enlarged manually).
+function autoSize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = (ta.scrollHeight + ta.offsetHeight - ta.clientHeight) + 'px';
+}
+function autoSizeAll() {
+  document.querySelectorAll('#list textarea').forEach(autoSize);
+}
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(autoSizeAll, 100); });
 
 // Resolves to 'proceed' or 'cancel'. Always asks before the current file is replaced.
 function confirmReplace() {
