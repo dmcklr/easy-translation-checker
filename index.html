@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Translation Checker</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f4f5f7; color: #222; }
+  header { position: sticky; top: 0; z-index: 10; background: #1f2937; color: #fff; padding: 10px 16px;
+           display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0 12px 0 0; }
+  button, .btn { background: #3b82f6; color: #fff; border: 0; border-radius: 4px; padding: 6px 12px;
+                 cursor: pointer; font-size: 14px; }
+  button:disabled { background: #6b7280; cursor: default; }
+  input[type=search] { padding: 6px 8px; border-radius: 4px; border: 0; min-width: 220px; }
+  label.toggle { font-size: 14px; display: flex; gap: 4px; align-items: center; }
+  #progress { font-size: 14px; margin-left: auto; }
+  #drop { margin: 40px auto; max-width: 600px; padding: 40px; border: 3px dashed #9ca3af; border-radius: 8px;
+          text-align: center; color: #6b7280; background: #fff; }
+  #drop.over { border-color: #3b82f6; color: #3b82f6; }
+  #list { padding: 12px 16px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 12px; background: #fff; border-radius: 6px;
+         padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.08); align-items: start; }
+  .row.done { opacity: .55; background: #ecfdf5; }
+  .key { font-family: monospace; font-size: 12px; color: #6b7280; word-break: break-all; margin-bottom: 4px; }
+  .en { white-space: pre-wrap; }
+  textarea { width: 100%; min-height: 48px; font: inherit; padding: 6px; border: 1px solid #d1d5db;
+             border-radius: 4px; resize: vertical; }
+  textarea.changed { border-color: #f59e0b; background: #fffbeb; }
+  .check { width: 26px; height: 26px; cursor: pointer; margin-top: 4px; }
+  .empty { text-align: center; color: #6b7280; padding: 40px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Translation Checker</h1>
+  <label class="btn">Load new translation file<input type="file" id="file" accept=".json,application/json" hidden></label>
+  <button id="export" disabled>Export</button>
+  <input type="search" id="search" placeholder="Search (key / text)…">
+  <label class="toggle"><input type="checkbox" id="showDone"> Show done</label>
+  <span id="progress"></span>
+</header>
+
+<div id="drop">Drop a JSON file here or open one via “Load new translation file”.<br><br>
+  <small>Format: <code>[{"key": "...", "en": "...", "ko": "..."}]</code> or
+  <code>{"key": {"en": "...", "ko": "..."}}</code></small>
+</div>
+<div id="list"></div>
+
+<script>
+const STORAGE_KEY = 'translationChecker.state';
+let state = null; // { fileName, shape: 'array'|'object', keyField, enField, targetField, items: [...] }
+
+const $ = id => document.getElementById(id);
+
+function detectFields(sample) {
+  const fields = Object.keys(sample).filter(f => f !== 'done');
+  const find = (cands) => fields.find(f => cands.includes(f.toLowerCase()));
+  const keyField = find(['key', 'id', 'name']);
+  const enField = find(['en', 'english', 'en_us', 'en-us']);
+  const targetField = find(['ko', 'kr', 'korean', 'ko_kr', 'ko-kr'])
+    || fields.find(f => f !== keyField && f !== enField);
+  return { keyField, enField, targetField };
+}
+
+function parseData(data, fileName) {
+  let shape, items;
+  if (Array.isArray(data)) {
+    shape = 'array';
+    items = data;
+  } else if (data && typeof data === 'object') {
+    shape = 'object';
+    items = Object.entries(data).map(([k, v]) => ({ __key: k, ...v }));
+  } else {
+    throw new Error('JSON must be an array or an object.');
+  }
+  if (!items.length) throw new Error('JSON contains no entries.');
+  const f = detectFields(items[0]);
+  if (shape === 'object') f.keyField = '__key';
+  if (!f.keyField || !f.enField || !f.targetField) {
+    throw new Error('Fields not recognized. Expected e.g. key, en, ko. Found: ' + Object.keys(items[0]).join(', '));
+  }
+  items.forEach(it => { it.__orig = it[f.targetField] ?? ''; });
+  return { fileName, shape, ...f, items };
+}
+
+function buildExport() {
+  const clean = it => {
+    const o = {};
+    for (const [k, v] of Object.entries(it)) if (!k.startsWith('__')) o[k] = v;
+    if (!it.done) delete o.done;
+    return o;
+  };
+  if (state.shape === 'array') return state.items.map(clean);
+  const out = {};
+  state.items.forEach(it => { out[it.__key] = clean(it); });
+  return out;
+}
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.warn(e); }
+}
+
+function updateProgress() {
+  const done = state.items.filter(i => i.done).length;
+  $('progress').textContent = `${done} / ${state.items.length} done`;
+}
+
+function render() {
+  $('drop').style.display = state ? 'none' : '';
+  $('export').disabled = !state;
+  const list = $('list');
+  list.innerHTML = '';
+  if (!state) { $('progress').textContent = ''; return; }
+  updateProgress();
+
+  const q = $('search').value.trim().toLowerCase();
+  const showDone = $('showDone').checked;
+  const { keyField, enField, targetField } = state;
+  const frag = document.createDocumentFragment();
+  let count = 0;
+
+  state.items.forEach(it => {
+    if (it.done && !showDone) return;
+    if (q && ![it[keyField], it[enField], it[targetField]].some(v => String(v ?? '').toLowerCase().includes(q))) return;
+    count++;
+
+    const row = document.createElement('div');
+    row.className = 'row' + (it.done ? ' done' : '');
+
+    const left = document.createElement('div');
+    const key = document.createElement('div');
+    key.className = 'key'; key.textContent = it[keyField];
+    const en = document.createElement('div');
+    en.className = 'en'; en.textContent = it[enField] ?? '';
+    left.append(key, en);
+
+    const ta = document.createElement('textarea');
+    ta.value = it[targetField] ?? '';
+    ta.lang = 'ko';
+    const markChanged = () => ta.classList.toggle('changed', ta.value !== it.__orig);
+    markChanged();
+    ta.addEventListener('input', () => { it[targetField] = ta.value; markChanged(); save(); });
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'check'; cb.checked = !!it.done;
+    cb.title = 'Mark as done';
+    cb.addEventListener('change', () => {
+      it.done = cb.checked;
+      save();
+      if (it.done && !showDone) row.remove(); else row.classList.toggle('done', it.done);
+      updateProgress();
+    });
+
+    row.append(left, ta, cb);
+    frag.appendChild(row);
+  });
+
+  if (!count) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = state.items.every(i => i.done) ? 'All done 🎉' : 'No entries found.';
+    frag.appendChild(e);
+  }
+  list.appendChild(frag);
+}
+
+function loadFile(file) {
+  if (!file) return;
+  if (state && state.items.some(i => i.done || i[state.targetField] !== i.__orig)
+      && !confirm('Discard current progress and load a new file? (Export first!)')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state = parseData(JSON.parse(reader.result), file.name);
+      $('showDone').checked = true;
+      save();
+      render();
+    } catch (e) {
+      alert('Error loading file: ' + e.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+$('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+$('search').addEventListener('input', render);
+$('showDone').addEventListener('change', render);
+
+$('export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(buildExport(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = state.fileName || 'translations.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+const drop = $('drop');
+['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+document.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+
+try {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) state = JSON.parse(saved);
+} catch (e) { console.warn(e); }
+render();
+</script>
+</body>
+</html>
