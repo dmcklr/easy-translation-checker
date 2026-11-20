@@ -46,6 +46,10 @@
   dialog h2 { margin: 0 0 12px; font-size: 18px; }
   dialog ul { padding-left: 20px; margin: 0 0 20px; line-height: 1.5; font-size: 14px; }
   dialog form { text-align: right; }
+  dialog p { font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+  .dialog-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+  button.danger { background: #dc2626; border-color: #dc2626; }
+  button.danger:hover { background: #b91c1c; }
 </style>
 </head>
 <body>
@@ -54,8 +58,10 @@
     <h1>Translation Checker</h1>
     <span id="fileName"></span>
     <div class="actions">
+      <button id="close" class="secondary" disabled>Close file</button>
       <button id="export" class="secondary" disabled>Export</button>
-      <label class="btn" title="Load new translation file">Import<input type="file" id="file" accept=".json,application/json" hidden></label>
+      <button id="import" title="Load new translation file">Import</button>
+      <input type="file" id="file" accept=".json,application/json" hidden>
     </div>
   </header>
   <div class="subbar">
@@ -82,6 +88,16 @@
         Import that file later to continue where you left off.</li>
   </ul>
   <form method="dialog"><button>Got it</button></form>
+</dialog>
+
+<dialog id="unsavedDialog">
+  <h2>Unexported changes</h2>
+  <p id="unsavedText"></p>
+  <form method="dialog" class="dialog-buttons">
+    <button value="cancel" class="secondary" autofocus>Cancel</button>
+    <button value="export" class="secondary">Export first</button>
+    <button value="discard" class="danger">Discard changes</button>
+  </form>
 </dialog>
 
 <script>
@@ -146,6 +162,7 @@ function updateProgress() {
 function render() {
   $('drop').style.display = state ? 'none' : '';
   $('export').disabled = !state;
+  $('close').disabled = !state;
   $('fileName').textContent = state ? state.fileName : '';
   $('fileName').title = state ? state.fileName : '';
   const list = $('list');
@@ -179,14 +196,14 @@ function render() {
     ta.lang = 'ko';
     const markChanged = () => ta.classList.toggle('changed', ta.value !== it.__orig);
     markChanged();
-    ta.addEventListener('input', () => { it[targetField] = ta.value; markChanged(); save(); });
+    ta.addEventListener('input', () => { it[targetField] = ta.value; markChanged(); markDirty(); });
 
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.className = 'check'; cb.checked = !!it.done;
     cb.title = 'Mark as done';
     cb.addEventListener('change', () => {
       it.done = cb.checked;
-      save();
+      markDirty();
       if (it.done && !showDone) row.remove(); else row.classList.toggle('done', it.done);
       updateProgress();
     });
@@ -204,10 +221,30 @@ function render() {
   list.appendChild(frag);
 }
 
+function markDirty() {
+  state.dirty = true;
+  save();
+}
+
+// Resolves to 'proceed' or 'cancel'. Offers to export first if there are unexported changes.
+function confirmDiscard(actionText) {
+  if (!state || !state.dirty) return Promise.resolve('proceed');
+  const dlg = $('unsavedDialog');
+  $('unsavedText').textContent =
+    `“${state.fileName}” has changes that have not been exported yet. ${actionText}`;
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise(resolve => {
+    dlg.addEventListener('close', () => {
+      if (dlg.returnValue === 'export') { exportFile(); resolve('proceed'); }
+      else if (dlg.returnValue === 'discard') resolve('proceed');
+      else resolve('cancel');
+    }, { once: true });
+  });
+}
+
 function loadFile(file) {
   if (!file) return;
-  if (state && state.items.some(i => i.done || i[state.targetField] !== i.__orig)
-      && !confirm('Discard current progress and load a new file? (Export first!)')) return;
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -224,6 +261,17 @@ function loadFile(file) {
 }
 
 $('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+$('import').addEventListener('click', async () => {
+  if (await confirmDiscard('Importing a new file will replace your current progress.') === 'cancel') return;
+  $('file').click();
+});
+$('close').addEventListener('click', async () => {
+  if (await confirmDiscard('Closing the file will discard your current progress.') === 'cancel') return;
+  state = null;
+  localStorage.removeItem(STORAGE_KEY);
+  $('search').value = '';
+  render();
+});
 $('search').addEventListener('input', render);
 $('showDone').addEventListener('change', render);
 
@@ -232,19 +280,28 @@ function exportFileName(name) {
   return base + '_edited.json';
 }
 
-$('export').addEventListener('click', () => {
+function exportFile() {
   const blob = new Blob([JSON.stringify(buildExport(), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = exportFileName(state.fileName || 'translations.json');
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-});
+  state.dirty = false;
+  save();
+}
+
+$('export').addEventListener('click', exportFile);
 
 const drop = $('drop');
 ['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
-document.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+document.addEventListener('drop', async e => {
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (await confirmDiscard('Importing a new file will replace your current progress.') === 'cancel') return;
+  loadFile(file);
+});
 
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
